@@ -1,0 +1,34 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.yexplorer.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.yexplorer.app'
+        minSdk 26          // Android 8.0
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Подписываем отладочным ключом, чтобы APK можно было сразу установить.
+            signingConfig signingConfigs.debug
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    lint { abortOnError false }
+}
+
+// Имя файла: YExplorer.apk
+android.applicationVariants.all { variant ->
+    variant.outputs.all { outputFileName = "YExplorer-${variant.buildType.name}.apk" }
+}

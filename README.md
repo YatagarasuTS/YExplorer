@@ -75,3 +75,15 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -H=wi
 ## 📄 Лицензия
 
 MIT
+
+<!-- android:start -->
+## 📱 Android
+
+YExplorer есть и для Android 8.0+ — тот же быстрый поиск по именам и по содержимому файлов, с опечатками и раскладкой.
+
+**[⬇ Скачать YExplorer.apk](https://github.com/YatagarasuTS/YExplorer/releases/download/android-v1.0/YExplorer.apk)** — установите файл и разрешите «Доступ ко всем файлам».
+
+🎬 [Рекламный ролик](https://github.com/YatagarasuTS/YExplorer/releases/download/android-v1.0/YExplorer-ad.mp4)
+
+Исходники приложения — в папке [`android`](android). APK собирается автоматически (GitHub Actions → *Build Android APK*) или в Android Studio.
+<!-- android:end -->

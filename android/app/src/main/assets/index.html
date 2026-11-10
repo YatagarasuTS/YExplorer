@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>YExplorer</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<script>
+// тема применяется до отрисовки, чтобы не мигало
+(function(){try{var t=localStorage.getItem('yx-theme');if(t)document.documentElement.dataset.theme=t;
+var c=JSON.parse(localStorage.getItem('yx-custom')||'null');if(c&&t==='custom'){var s=document.documentElement.style;s.setProperty('--bg',c.bg);s.setProperty('--panel',c.panel);s.setProperty('--text',c.text);s.setProperty('--accent',c.accent);}}catch(e){}})();
+</script>
+<style>
+:root{
+  --bg:#0c0c0e; --panel:#151518; --text:#f1f1f3; --accent:#e5384f;
+  --font:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --mono:"Cascadia Code","JetBrains Mono",Consolas,"SF Mono",monospace;
+  --r:12px;
+}
+:root[data-theme="light"]{ --bg:#f4f3f1; --panel:#ffffff; --text:#17171a; --accent:#c9243d; }
+:root{
+  --muted:color-mix(in srgb,var(--text) 55%,var(--bg));
+  --faint:color-mix(in srgb,var(--text) 32%,var(--bg));
+  --line:color-mix(in srgb,var(--text) 12%,var(--bg));
+  --hover:color-mix(in srgb,var(--text) 6%,var(--panel));
+  --panel2:color-mix(in srgb,var(--text) 4%,var(--panel));
+  --accent-soft:color-mix(in srgb,var(--accent) 18%,transparent);
+  --on-accent:#fff;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{color-scheme:light}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 var(--font);overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input,select{font:inherit;color:inherit}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+mark{background:var(--accent-soft);color:inherit;border-radius:3px;padding:0 1px;box-shadow:inset 0 -2px 0 var(--accent)}
+::selection{background:var(--accent-soft)}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;border:2px solid var(--bg)}::-webkit-scrollbar-thumb:hover{background:var(--faint)}
+
+#app{display:flex;flex-direction:column;height:100%}
+header{display:flex;align-items:center;gap:12px;padding:14px 18px 10px}
+.logo-s{width:30px;height:30px;border-radius:8px;flex:none}
+.search{flex:1;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:0 14px;height:48px;transition:border-color .15s, box-shadow .15s}
+.search:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.search svg{color:var(--muted)}
+#q{flex:1;background:none;border:0;outline:0;font-size:17px;height:100%;min-width:0}
+#q::placeholder{color:var(--faint)}
+#count{color:var(--muted);font-size:12px;white-space:nowrap}
+.ibtn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted)}
+.ibtn:hover{background:var(--hover);color:var(--text)}
+.ibtn.on{background:var(--accent-soft);color:var(--text)}
+#clear{visibility:hidden}
+#clear.show{visibility:visible}
+
+.bar{display:flex;align-items:center;gap:8px;padding:0 18px 10px}
+.chips{display:flex;gap:6px;flex:1;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:9px;color:var(--muted);white-space:nowrap;font-size:13px;border:1px solid transparent}
+.chip b{font-weight:500;font-size:11px;color:var(--faint)}
+.chip:hover{background:var(--hover);color:var(--text)}
+.chip.on{background:var(--text);color:var(--bg)}
+.chip.on b{color:color-mix(in srgb,var(--bg) 60%,var(--text))}
+.chip.zero{opacity:.45}
+.selbox{height:30px;border-radius:9px;background:var(--panel);border:1px solid var(--line);padding:0 8px;outline:0;cursor:pointer;font-size:13px}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:2px}
+.seg button{width:30px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--muted)}
+.seg button.on{background:var(--hover);color:var(--text)}
+
+#banner{margin:0 18px 8px;padding:8px 12px;border-radius:10px;background:var(--accent-soft);font-size:13px;display:none}
+#banner.show{display:block}
+
+#main{flex:1;min-height:0;display:flex;gap:0}
+#results{flex:1;overflow:auto;padding:4px 18px 18px;outline:0}
+#detail{width:0;overflow:hidden;border-left:0;background:var(--panel);transition:width .18s ease}
+#detail.open{width:380px;border-left:1px solid var(--line)}
+#detail .in{width:380px;height:100%;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:14px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.tile{display:flex;flex-direction:column;gap:7px;border-radius:var(--r);padding:6px;cursor:default;border:1px solid transparent}
+.tile:hover{background:var(--hover)}
+.tile.sel,.row.sel{background:var(--hover);border-color:var(--text);outline:0}
+.prev{position:relative;aspect-ratio:4/3;border-radius:9px;background:var(--panel);border:1px solid var(--line);overflow:hidden;display:grid;place-items:center}
+.prev img{width:100%;height:100%;object-fit:cover;background:#fff;display:block}
+.prev pre{position:absolute;inset:0;margin:0;padding:10px 11px;font:10.5px/1.5 var(--mono);color:var(--muted);white-space:pre-wrap;word-break:break-word;overflow:hidden;-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
+.prev pre.doc{font-family:var(--font);font-size:11px}
+.prev .ext{position:absolute;left:11px;bottom:8px;font-size:22px;font-weight:600;letter-spacing:-.02em;color:var(--text);text-shadow:0 1px 8px var(--panel)}
+.prev .big{color:var(--faint)}
+.prev .big svg{width:46px;height:46px;stroke-width:1.2}
+.tname{font-size:13px;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 3px}
+.tmeta{font-size:11px;color:var(--faint);padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:-5px}
+.tag{color:var(--accent);font-weight:600}
+
+.row{display:flex;align-items:center;gap:12px;padding:7px 10px;border-radius:10px;border:1px solid transparent}
+.row:hover{background:var(--hover)}
+.row .ico{width:34px;height:34px;border-radius:8px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;color:var(--muted);flex:none;overflow:hidden;font-size:10px;font-weight:650;text-transform:uppercase}
+.row .ico img{width:100%;height:100%;object-fit:cover}
+.row .tx{flex:1;min-width:0}
+.row .nm{font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .pt{font-size:12px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .sn{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .rm{font-size:12px;color:var(--faint);text-align:right;white-space:nowrap;flex:none;min-width:92px}
+
+.empty{display:grid;place-items:center;height:100%;text-align:center;color:var(--muted);padding:40px}
+.empty h3{margin:0 0 6px;font-size:18px;color:var(--text);font-weight:600}
+.empty img{width:72px;opacity:.9;margin-bottom:14px}
+
+footer{display:flex;align-items:center;gap:14px;padding:8px 18px;border-top:1px solid var(--line);font-size:12px;color:var(--faint)}
+.dot{width:7px;height:7px;border-radius:50%;background:#35c46b;display:inline-block;margin-right:6px}
+.dot.busy{background:#f2a93b;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.keys{margin-left:auto;display:flex;gap:14px}
+kbd{font:600 10.5px var(--font);background:var(--panel);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--muted);margin-right:5px}
+#pbar{flex:0 0 140px;height:3px;background:var(--line);border-radius:3px;overflow:hidden;display:none}
+#pbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+/* detail */
+.dprev{border-radius:10px;border:1px solid var(--line);background:var(--bg);overflow:hidden;max-height:280px;display:grid;place-items:center}
+.dprev img{max-width:100%;max-height:280px;display:block}
+.dprev pre{margin:0;padding:12px;font:11.5px/1.55 var(--mono);white-space:pre-wrap;word-break:break-word;width:100%;max-height:300px;overflow:auto;color:var(--muted)}
+.dname{font-size:16px;font-weight:650;word-break:break-all}
+.dpath{font-size:12px;color:var(--faint);word-break:break-all}
+.dmeta{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:12.5px}
+.dmeta span:nth-child(odd){color:var(--faint)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{height:34px;padding:0 14px;border-radius:9px;background:var(--hover);border:1px solid var(--line);display:inline-flex;align-items:center;gap:8px;font-size:13px}
+.btn:hover{border-color:var(--faint)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.danger{color:#ff6b7d}
+
+/* splash */
+#splash{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;grid-template-columns:minmax(300px,1fr) minmax(320px,1.15fr);gap:0}
+#splash.show{display:grid}
+#splash .l{padding:56px 48px;display:flex;flex-direction:column;justify-content:center;gap:10px;position:relative}
+#splash .l img{width:96px;height:96px;border-radius:24px;margin-bottom:18px;box-shadow:0 18px 50px -12px var(--accent)}
+#splash h1{font-size:64px;line-height:1;font-weight:300;letter-spacing:-.04em;margin:0}
+#splash h1 b{font-weight:700;color:var(--accent)}
+#splash .sub{color:var(--muted);font-size:17px;margin-top:6px}
+#splash .r{background:var(--panel);margin:28px 28px 28px 0;border-radius:20px;border:1px solid var(--line);padding:44px;display:flex;flex-direction:column;justify-content:center;gap:12px}
+#splash .lab{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+#splash .num{font-size:64px;font-weight:300;letter-spacing:-.03em;line-height:1.05;font-variant-numeric:tabular-nums}
+#splash .of{color:var(--faint);font-size:14px}
+#splash .pb{height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:14px}
+#splash .pb i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+#splash .row2{display:flex;justify-content:space-between;color:var(--faint);font-size:12px;font-variant-numeric:tabular-nums}
+#splash .foot{margin-top:26px;color:var(--faint);font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+@media (max-width:760px){#splash{grid-template-columns:1fr}#splash .r{margin:0 18px 18px}#splash .l{padding:28px}#splash h1{font-size:44px}}
+
+/* settings */
+#settings{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:none;place-items:center;backdrop-filter:blur(3px)}
+#settings.show{display:grid}
+.sbox{width:min(860px,94vw);height:min(600px,90vh);background:var(--panel);border:1px solid var(--line);border-radius:18px;display:grid;grid-template-columns:190px 1fr;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.snav{padding:22px 12px;display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--line);background:var(--panel2)}
+.snav h2{margin:0 10px 14px;font-size:18px;font-weight:650}
+.snav button{text-align:left;padding:8px 12px;border-radius:9px;color:var(--muted);display:flex;gap:10px;align-items:center}
+.snav button:hover{background:var(--hover);color:var(--text)}
+.snav button.on{background:var(--hover);color:var(--text);font-weight:600}
+.spage{display:flex;flex-direction:column;min-width:0;min-height:0}
+.sbody{flex:1;overflow:auto;padding:24px 28px}
+.sfoot{border-top:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;gap:10px;justify-content:flex-end;font-size:12px;color:var(--faint)}
+.sec{display:none}.sec.on{display:block}
+.sec h3{margin:0 0 4px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.sec .grp{margin-bottom:26px}
+.fld{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:12px 0;border-bottom:1px solid var(--line)}
+.fld:last-child{border-bottom:0}
+.fld .t{font-weight:550}.fld .d{font-size:12px;color:var(--faint);max-width:420px;margin-top:2px}
+.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:10px 0 6px}
+.theme{border:2px solid var(--line);border-radius:12px;padding:8px;text-align:center;font-size:12.5px;color:var(--muted)}
+.theme:hover{border-color:var(--faint)}
+.theme.on{border-color:var(--accent);color:var(--text)}
+.swatch{height:74px;border-radius:7px;margin-bottom:7px;padding:8px;display:flex;flex-direction:column;gap:5px;border:1px solid rgba(128,128,128,.25)}
+.swatch i{display:block;height:5px;border-radius:3px;opacity:.9}
+.swatch .bx{display:flex;gap:5px;flex:1}.swatch .bx u{flex:1;border-radius:4px;text-decoration:none}
+.colors{display:none;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.colors.on{display:grid}
+.colors label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}
+.colors input[type=color]{width:100%;height:38px;padding:0;border:1px solid var(--line);border-radius:9px;background:none;cursor:pointer}
+.presets{display:none;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.presets.on{display:flex}
+.presets button{height:28px;padding:0 12px;border-radius:14px;border:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px}
+.presets button:hover{color:var(--text);border-color:var(--faint)}
+.presets button i{width:10px;height:10px;border-radius:50%;display:block}
+.tgl{width:42px;height:24px;border-radius:12px;background:var(--line);position:relative;transition:background .15s;flex:none}
+.tgl::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s}
+.tgl.on{background:var(--accent)}.tgl.on::after{transform:translateX(18px)}
+.num2{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.num2 button{width:32px;height:32px;color:var(--muted)}.num2 button:hover{background:var(--hover)}
+.num2 span{min-width:46px;text-align:center;font-variant-numeric:tabular-nums}
+.list{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.li{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);font-size:13px;word-break:break-all}
+.li span{flex:1}
+.li button{color:var(--faint)}.li button:hover{color:#ff6b7d}
+.addrow{display:flex;gap:8px;margin-top:8px}
+.addrow input{flex:1;height:36px;border-radius:9px;border:1px solid var(--line);background:var(--bg);padding:0 12px;outline:0}
+.addrow input:focus{border-color:var(--accent)}
+.about{display:flex;gap:18px;align-items:center;margin-bottom:20px}
+.about img{width:84px;height:84px;border-radius:20px}
+.about h4{margin:0;font-size:24px;font-weight:650}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+.stat b{display:block;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}.stat span{font-size:12px;color:var(--faint)}
+#toast{position:fixed;left:50%;bottom:54px;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:all .2s;z-index:90;max-width:80vw}
+#toast.show{opacity:1;transform:translateX(-50%)}
+
+/* ---- Android ---- */
+html,body{max-width:100vw;overflow-x:hidden}
+#app,#main,#results,header,.bar,footer{min-width:0;max-width:100vw}
+header>*{min-width:0}
+.search{min-width:0;flex:1 1 0}
+#openSettings{flex:none}
+#detail .in,#detail .in>*{min-width:0;max-width:100%}
+#detail pre,.dprev pre{white-space:pre-wrap;word-break:break-word}
+.btns{flex-wrap:wrap}
+html,body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+header{padding:10px 12px 6px;gap:8px}
+.logo-s{width:28px;height:28px}
+.search{height:44px;padding:0 10px}
+#q{font-size:16px}
+.bar{overflow-x:auto;padding-left:12px;padding-right:12px;flex-wrap:nowrap}
+.bar .chips{flex-wrap:nowrap}
+#sort{display:none}
+#vPanel,.keys{display:none!important}
+footer{padding:6px 12px calc(6px + env(safe-area-inset-bottom))}
+#detail{position:fixed;inset:0;width:100%!important;z-index:30;border-left:0!important;transform:translateX(100%);transition:transform .18s ease;display:block}
+#detail.open{transform:none}
+#detail .in{width:100%;padding:14px 16px calc(24px + env(safe-area-inset-bottom))}
+#dClose{align-self:flex-start;display:flex;gap:6px;align-items:center}
+#permBox{position:fixed;inset:0;z-index:80;background:var(--bg);display:none;align-items:center;justify-content:center;padding:28px;text-align:center}
+#permBox.show{display:flex}
+#permBox img{width:96px;height:96px;border-radius:22px;margin-bottom:18px}
+#permBox h2{margin:0 0 10px;font-size:22px}
+#permBox p{color:var(--muted);line-height:1.5;margin:0 0 22px}
+#permBox .btn{padding:14px 22px;font-size:16px}
+#settings .sbox{width:100vw;height:100%;max-width:none;max-height:none;border-radius:0;border:0;display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr}
+#settings .sbox>div{display:flex;flex-direction:column;min-height:0;min-width:0}
+#settings .sbody{padding:16px}
+.fld{flex-wrap:wrap;gap:10px}
+#settings .snav{width:auto;flex-direction:row;overflow-x:auto;flex:none;padding:10px;border-right:0;border-bottom:1px solid var(--line)}
+#settings .snav h2{display:none}
+.addrow input{min-width:0}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M15 4v16"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+    <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="m21 16-5-5-9 9"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></symbol>
+    <symbol id="i-gen" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></symbol>
+    <symbol id="i-folderopen" viewBox="0 0 24 24"><path d="M3 18V7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V10"/><path d="M3 18l2.4-7.2a1 1 0 0 1 1-.8H21a1 1 0 0 1 1 1.3L19.7 18a1 1 0 0 1-1 .7H4a1 1 0 0 1-1-.7z"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
+    <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+  <header>
+    <img class="logo-s" src="/logo.png" alt="">
+    <label class="search">
+      <svg class="i"><use href="#i-search"/></svg>
+      <input id="q" type="text" autocomplete="off" spellcheck="false" placeholder="Имя файла или слово из текста…">
+      <span id="count"></span>
+      <button class="ibtn" id="clear" title="Очистить (Esc)"><svg class="i"><use href="#i-x"/></svg></button>
+    </label>
+    <button class="ibtn" id="openSettings" title="Настройки"><svg class="i"><use href="#i-gear"/></svg></button>
+  </header>
+
+  <div class="bar">
+    <div class="chips" id="chips"></div>
+    <select class="selbox" id="sort" title="Сортировка">
+      <option value="best">Лучшее совпадение</option>
+      <option value="name">По имени</option>
+      <option value="date">По дате</option>
+      <option value="size">По размеру</option>
+    </select>
+    <div class="seg">
+      <button id="vGrid" title="Сетка"><svg class="i"><use href="#i-grid"/></svg></button>
+      <button id="vList" title="Список"><svg class="i"><use href="#i-list"/></svg></button>
+    </div>
+    <button class="ibtn" id="vPanel" title="Панель просмотра (Пробел)"><svg class="i"><use href="#i-panel"/></svg></button>
+  </div>
+  <div id="banner"></div>
+
+  <div id="main">
+    <div id="results" tabindex="-1"></div>
+    <aside id="detail"><div class="in" id="detailIn"></div></aside>
+  </div>
+
+  <footer>
+    <span id="stat"><span class="dot"></span>…</span>
+    <div id="pbar"><i></i></div>
+    <div class="keys">
+      <span><kbd>↵</kbd>Открыть</span>
+      <span><kbd>Пробел</kbd>Просмотр</span>
+      <span><kbd>Ctrl ↵</kbd>В папке</span>
+      <span><kbd>Esc</kbd>Сброс</span>
+    </div>
+  </footer>
+</div>
+
+<div id="permBox"><div><img src="/icon512.png" alt=""><h2>Нужен доступ к файлам</h2><p>YExplorer ищет по именам и содержимому файлов в памяти телефона. Всё работает прямо на устройстве, данные никуда не отправляются.</p><button class="btn pri" id="permBtn">Разрешить доступ</button></div></div>
+<div id="splash">
+  <div class="l">
+    <img src="/icon512.png" alt="">
+    <h1>Y<b>Explorer</b></h1>
+    <div class="sub">Файлы находятся за секунды.</div>
+  </div>
+  <div class="r">
+    <div class="lab" id="spLab">Сканирую файлы</div>
+    <div class="num" id="spNum">0</div>
+    <div class="of" id="spOf">файлов найдено</div>
+    <div class="pb"><i id="spBar"></i></div>
+    <div class="row2"><span id="spPct">0%</span><span id="spEta"></span></div>
+    <div class="foot"><span>Только в первый раз. Потом любой поиск мгновенный.</span><button class="btn" id="spSkip">Искать уже сейчас</button></div>
+  </div>
+</div>
+
+<div id="settings">
+  <div class="sbox">
+    <nav class="snav">
+      <h2>Настройки</h2>
+      <button data-s="general" class="on"><svg class="i"><use href="#i-sliders"/></svg>Основные</button>
+      <button data-s="folders"><svg class="i"><use href="#i-folder"/></svg>Папки</button>
+      <button data-s="excl"><svg class="i"><use href="#i-ban"/></svg>Исключения</button>
+      <button data-s="search"><svg class="i"><use href="#i-search"/></svg>Поиск</button>
+      <button data-s="about"><svg class="i"><use href="#i-info"/></svg>О программе</button>
+    </nav>
+    <div class="spage">
+      <div class="sbody">
+        <section class="sec on" id="s-general">
+          <div class="grp">
+            <h3>Внешний вид</h3>
+            <div class="themes" id="themes">
+              <button class="theme" data-t="light"><div class="swatch" style="background:#f4f3f1"><i style="background:#17171a;width:40%"></i><div class="bx"><u style="background:#fff"></u><u style="background:#e4e2de"></u><u style="background:#fff"></u></div></div>Светлая</button>
+              <button class="theme" data-t="dark"><div class="swatch" style="background:#0c0c0e"><i style="background:#f1f1f3;width:40%"></i><div class="bx"><u style="background:#1d1d21"></u><u style="background:#2a2a2f"></u><u style="background:#1d1d21"></u></div></div>Тёмная</button>
+              <button class="theme" data-t="custom"><div class="swatch" id="swCustom"><i id="swCustomI" style="width:40%"></i><div class="bx"><u id="swCustomA"></u><u id="swCustomB"></u><u id="swCustomA2"></u></div></div>Своя</button>
+            </div>
+            <div class="presets" id="presets"></div>
+            <div class="colors" id="colors">
+              <label>Фон<input type="color" id="cBg"></label>
+              <label>Панели<input type="color" id="cPanel"></label>
+              <label>Текст<input type="color" id="cText"></label>
+              <label>Акцент<input type="color" id="cAccent"></label>
+            </div>
+          </div>
+          <div class="grp">
+            <h3>Запуск</h3>
+            <div class="fld"><div><div class="t">Быстрый вызов</div><div class="d">Нажмите <kbd>Alt</kbd>+<kbd>Пробел</kbd> из любого места, чтобы открыть окно поиска (работает, пока YExplorer запущен).</div></div></div>
+            <div class="fld"><div><div class="t">Максимум результатов</div><div class="d">Чем меньше, тем быстрее отрисовка.</div></div>
+              <div class="num2"><button id="mrMinus"><svg class="i"><use href="#i-minus"/></svg></button><span id="mrVal">60</span><button id="mrPlus"><svg class="i"><use href="#i-plus"/></svg></button></div></div>
+            <div class="fld"><div><div class="t">Запускать вместе с Windows</div><div class="d">Работает в фоне, индекс всегда свежий. Окно открывается по Alt+Пробел или повторным запуском.</div></div><button class="tgl" id="tAuto"></button></div>
+            <div class="fld" id="quitRow"><div><div class="t">Выйти из YExplorer</div><div class="d">Полностью закрыть программу, в том числе фоновую работу.</div></div><button class="btn danger" id="quitBtn">Выйти</button></div>
+          </div>
+        </section>
+
+        <section class="sec" id="s-folders">
+          <div class="grp"><h3>Где искать</h3>
+            <div class="d" style="font-size:12px;color:var(--faint)">По умолчанию — все локальные диски. Системные папки и мусор исключены (вкладка «Исключения»).</div>
+            <div class="list" id="folderList"></div>
+            <div class="addrow"><input id="folderIn" placeholder="/storage/emulated/0/Documents"><button class="btn" id="folderAdd">Добавить</button><button class="btn" id="folderPick"><svg class="i"><use href="#i-folderopen"/></svg>Обзор…</button></div>
+          </div>
+        </section>
+
+        <section class="sec" id="s-excl">
+          <div class="grp"><h3>Не индексировать</h3>
+            <div class="d" style="font-size:12px;color:var(--faint)">Имя папки (например <b>node_modules</b>) исключается везде, полный путь — только он.</div>
+            <div class="list" id="exclList"></div>
+            <div class="addrow"><input id="exclIn" placeholder="Имя папки или полный путь"><button class="btn" id="exclAdd">Добавить</button></div>
+          </div>
+        </section>
+
+        <section class="sec" id="s-search">
+          <div class="grp"><h3>Что искать</h3>
+            <div class="fld"><div><div class="t">Внутри документов и кода</div><div class="d">txt, md, json, исходники, docx, xlsx, pptx, odt, pdf, html и другие.</div></div><button class="tgl" id="tContent"></button></div>
+            <div class="fld"><div><div class="t">Текст на скриншотах (OCR)</div><div class="d">Распознаёт надписи на png/jpg встроенным в Windows 10/11 движком. Работает в фоне, первый проход идёт дольше.</div></div><button class="tgl" id="tOcr"></button></div>
+            <div class="fld"><div><div class="t">Прощать опечатки</div><div class="d">«докумет» найдёт «документ». Также исправляется раскладка: «ghbdtn» → «привет».</div></div><button class="tgl" id="tTypos"></button></div>
+          </div>
+          <div class="grp"><h3>Индекс</h3>
+            <div class="btns"><button class="btn" id="reidx">Обновить индекс</button><button class="btn" id="reidxFull">Пересоздать с нуля</button></div>
+          </div>
+        </section>
+
+        <section class="sec" id="s-about">
+          <div class="about"><img src="/icon512.png" alt=""><div><h4>YExplorer</h4><div style="color:var(--faint)" id="verLine"></div></div></div>
+          <div class="stats" id="aboutStats"></div>
+          <p style="color:var(--faint);font-size:12.5px;margin-top:18px">Индекс и настройки хранятся локально: <span id="dataDir"></span>. Ничего не отправляется в интернет.</p>
+        </section>
+      </div>
+      <div class="sfoot"><span id="saved"></span><button class="btn pri" id="closeSettings">Готово</button></div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const st = {cat:'all', sort:'best', view:'grid', items:[], sel:0, counts:{}, q:'', toks:[], panel:false, cfg:null, status:null, skip:false, lastStage:'', total:0};
+const CATS = [['all','Все'],['files','Файлы'],['folders','Папки'],['images','Картинки'],['docs','Документы'],['code','Код'],['media','Медиа'],['recent','Недавние']];
+const nf = new Intl.NumberFormat('ru-RU');
+const fmt = n => nf.format(n);
+const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+
+function size(n){ if(n<1024) return n+' Б'; const u=['КБ','МБ','ГБ','ТБ']; let i=-1; do{n/=1024;i++}while(n>=1024&&i<3); return (n<10?n.toFixed(1):Math.round(n))+' '+u[i]; }
+function ago(ts){
+  const s = Date.now()/1000 - ts; if(s<0||!ts) return '';
+  if(s<60) return 'только что'; if(s<3600) return Math.floor(s/60)+' мин назад';
+  if(s<86400) return Math.floor(s/3600)+' ч назад'; const d=Math.floor(s/86400);
+  if(d===1) return 'вчера'; if(d<7) return d+' дн назад'; if(d<30) return Math.floor(d/7)+' нед назад';
+  if(d<365) return Math.floor(d/30)+' мес назад'; return Math.floor(d/365)+' г назад';
+}
+function fullDate(ts){ return ts? new Date(ts*1000).toLocaleString('ru-RU') : '—'; }
+
+async function api(path, body){
+  if(body!==undefined) path += (path.includes('?')?'&':'?')+'j='+encodeURIComponent(JSON.stringify(body));
+  const r = await fetch(path);
+  let d = null; try{ d = await r.json(); }catch(e){}
+  if(!r.ok) throw new Error((d&&d.error)||('Ошибка '+r.status));
+  return d;
+}
+let toastT;
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
+
+// ---------- подсветка ----------
+function reFor(toks){
+  const parts = [...toks].filter(Boolean).sort((a,b)=>b.length-a.length).map(t => t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/е/g,'[её]'));
+  return parts.length ? new RegExp('('+parts.join('|')+')','giu') : null;
+}
+function hl(text){
+  const re = reFor(st.toks); if(!re) return esc(text);
+  let out='', last=0;
+  for(const m of text.matchAll(re)){ out += esc(text.slice(last,m.index)) + '<mark>'+esc(m[0])+'</mark>'; last = m.index+m[0].length; }
+  return out + esc(text.slice(last));
+}
+
+// ---------- темы ----------
+const PRESETS = [
+  {n:'Сумерки', bg:'#12101a', panel:'#1c1830', text:'#efeaff', accent:'#9b6dff'},
+  {n:'Океан', bg:'#0a1620', panel:'#11222f', text:'#e6f3fa', accent:'#2ec4d6'},
+  {n:'Мята', bg:'#eef4ef', panel:'#ffffff', text:'#15241b', accent:'#1f9d63'},
+  {n:'Песок', bg:'#f3ece0', panel:'#fffaf0', text:'#2a2118', accent:'#c9742a'},
+  {n:'Графит', bg:'#1a1a1a', panel:'#242424', text:'#f0f0f0', accent:'#f2c230'},
+];
+function applyTheme(cfg){
+  const r = document.documentElement;
+  r.dataset.theme = cfg.theme;
+  ['--bg','--panel','--text','--accent'].forEach(v=>r.style.removeProperty(v));
+  if(cfg.theme==='custom'){
+    const c = cfg.custom;
+    r.style.setProperty('--bg',c.bg); r.style.setProperty('--panel',c.panel); r.style.setProperty('--text',c.text); r.style.setProperty('--accent',c.accent);
+    // тёмная или светлая схема элементов управления
+    const lum = hex => { const n=parseInt(hex.slice(1),16); return (0.299*(n>>16)+0.587*((n>>8)&255)+0.114*(n&255))/255; };
+    r.style.colorScheme = lum(c.bg)<0.5 ? 'dark':'light';
+    lsSet('yx-custom', JSON.stringify(c));
+  } else r.style.colorScheme = cfg.theme==='light'?'light':'dark';
+  lsSet('yx-theme', cfg.theme);
+  // иконка превью «своя» тема
+  const c = cfg.custom;
+  $('#swCustom').style.background=c.bg; $('#swCustomI').style.background=c.text;
+  $('#swCustomA').style.background=c.panel; $('#swCustomB').style.background=c.accent; $('#swCustomA2').style.background=c.panel;
+}
+
+// ---------- статус ----------
+async function pollStatus(){
+  let delay = 800;
+  try{
+    const s = await api('/api/status'); st.status = s; renderStatus(s);
+    if(s.stage==='ready') delay = 4000;
+    if(st.lastStage && st.lastStage!==s.stage && (s.stage==='ready'||s.stage==='content'||s.stage==='ocr')) search();
+    else if(s.stage==='scanning' && s.scanned && Math.random()<.4) search(true);
+    st.lastStage = s.stage;
+  }catch(e){ delay = 2500; }
+  setTimeout(pollStatus, delay);
+}
+function eta(s){ if(!s) return ''; if(s<60) return '~'+s+' с'; return '~'+Math.ceil(s/60)+' мин'; }
+function renderStatus(s){
+  const busy = s.stage!=='ready';
+  let txt = '';
+  const files = fmt(s.files)+' файлов';
+  if(s.stage==='scanning') txt = 'Сканирую… '+fmt(s.scanned);
+  else if(s.stage==='content') txt = files+' · читаю содержимое '+fmt(s.contentDone)+' / '+fmt(s.contentTotal)+(s.eta?' · '+eta(s.eta):'');
+  else if(s.stage==='ocr') txt = files+' · распознаю скриншоты '+fmt(s.ocrDone)+' / '+fmt(s.ocrTotal);
+  else txt = files+(s.docs?' · в индексе содержимого '+fmt(s.docs):'');
+  $('#stat').innerHTML = '<span class="dot'+(busy?' busy':'')+'"></span>'+esc(txt);
+  const pb = $('#pbar');
+  let p = null;
+  if(s.stage==='content' && s.contentTotal) p = s.contentDone/s.contentTotal;
+  if(s.stage==='ocr' && s.ocrTotal) p = s.ocrDone/s.ocrTotal;
+  pb.style.display = p===null?'none':'block'; if(p!==null) pb.firstElementChild.style.width = (p*100)+'%';
+  // заставка
+  const show = s.firstRun && (s.stage==='scanning'||s.stage==='content') && !st.skip;
+  $('#splash').classList.toggle('show', !!show);
+  if(show){
+    if(s.stage==='scanning'){ $('#spLab').textContent='Сканирую файлы'; $('#spNum').textContent=fmt(s.scanned); $('#spOf').textContent='файлов найдено'; $('#spBar').style.width='8%'; $('#spPct').textContent=''; $('#spEta').textContent=''; }
+    else { const pc = s.contentTotal? s.contentDone/s.contentTotal:1; $('#spLab').textContent='Читаю содержимое документов'; $('#spNum').textContent=fmt(s.contentDone); $('#spOf').textContent='из '+fmt(s.contentTotal)+' файлов'; $('#spBar').style.width=(pc*100)+'%'; $('#spPct').textContent=Math.floor(pc*100)+'%'; $('#spEta').textContent=s.eta?eta(s.eta)+' осталось':''; }
+  }
+}
+
+// ---------- поиск ----------
+let ctl, searchSeq = 0;
+async function search(quiet){
+  if(ctl) ctl.abort(); ctl = new AbortController();
+  const seq = ++searchSeq;
+  const p = new URLSearchParams({q:st.q, cat:st.cat, sort:st.sort});
+  try{
+    const r = await fetch('/api/search?'+p, {signal:ctl.signal});
+    if(!r.ok) throw new Error((await r.json()).error||'Ошибка поиска');
+    const d = await r.json();
+    if(seq!==searchSeq) return;
+    st.items = d.items||[]; st.counts = d.counts||{}; st.toks = d.toks||[]; st.total = d.total;
+    if(!quiet || st.sel>=st.items.length) st.sel = 0;
+    $('#count').textContent = st.q ? fmt(d.total)+' · '+(d.ms<10?d.ms.toFixed(1):Math.round(d.ms))+' мс' : '';
+    const b = $('#banner');
+    if(d.fixed){ b.innerHTML = 'Показаны результаты для «<b>'+esc(d.fixed)+'</b>» — исправлена раскладка клавиатуры.'; b.classList.add('show'); } else b.classList.remove('show');
+    renderChips(); renderResults(); if(st.panel) renderDetail();
+  }catch(e){ if(e.name!=='AbortError'){ $('#results').innerHTML = '<div class="empty"><div><h3>Нет связи с программой</h3>'+esc(e.message)+'<br>Закройте окно и запустите YExplorer снова.</div></div>'; } }
+}
+function renderChips(){
+  $('#chips').innerHTML = CATS.map(([k,l]) => {
+    const n = st.counts[k]||0;
+    return `<button class="chip${st.cat===k?' on':''}${n===0&&k!=='all'?' zero':''}" data-c="${k}">${l}<b>${n?fmt(n):''}</b></button>`;
+  }).join('');
+}
+const ICON = {folder:'i-folder', image:'i-img', media:'i-play', doc:'i-file', code:'i-file', other:'i-file'};
+function tileHTML(it, i){
+  const thumb = it.cat==='image' ? `/api/thumb?p=${encodeURIComponent(it.path)}&w=360` : null;
+  let prev;
+  if(it.isDir) prev = `<div class="big"><svg class="i"><use href="#i-folder"/></svg></div>`;
+  else if(thumb) prev = `<img loading="lazy" src="${thumb}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'big',innerHTML:'<svg class=\\'i\\'><use href=\\'#i-img\\'/></svg>'}))" alt="">` + (it.snip?`<pre style="background:color-mix(in srgb,var(--panel) 88%,transparent);opacity:0;transition:opacity .15s" class="ocr">${hl(it.snip)}</pre>`:'');
+  else if(it.snip) prev = `<pre class="${it.cat==='doc'?'doc':''}">${hl(it.snip)}</pre><span class="ext">${it.ext?'.'+esc(it.ext):''}</span>`;
+  else prev = `<div class="big"><svg class="i"><use href="#${ICON[it.cat]||'i-file'}"/></svg></div><span class="ext">${it.ext?'.'+esc(it.ext):''}</span>`;
+  const tag = it.match==='content'?'<span class="tag">в тексте</span> · ':(it.match==='fuzzy'?'<span class="tag">опечатка</span> · ':'');
+  const meta = it.isDir ? 'папка · '+ago(it.mod) : size(it.size)+' · '+ago(it.mod);
+  return `<div class="tile${i===st.sel?' sel':''}" data-i="${i}" title="${esc(it.path)}"><div class="prev">${prev}</div><div class="tname">${hl(it.name)}</div><div class="tmeta">${tag}${meta}</div></div>`;
+}
+function rowHTML(it, i){
+  const ico = it.cat==='image' ? `<img loading="lazy" src="/api/thumb?p=${encodeURIComponent(it.path)}&w=96" alt="" onerror="this.remove()">` : (it.isDir?'<svg class="i"><use href="#i-folder"/></svg>':esc((it.ext||'').slice(0,4)));
+  const tag = it.match==='content'?'в тексте':(it.match==='fuzzy'?'опечатка':'');
+  return `<div class="row${i===st.sel?' sel':''}" data-i="${i}"><div class="ico">${ico}</div><div class="tx"><div class="nm">${hl(it.name)}${tag?` <span class="tag" style="font-size:11px">${tag}</span>`:''}</div>${it.snip&&it.match!=='name'?`<div class="sn">${hl(it.snip.replace(/\s+/g,' '))}</div>`:`<div class="pt">${esc(it.dir)}</div>`}</div><div class="rm">${it.isDir?'папка':size(it.size)}<br>${ago(it.mod)}</div></div>`;
+}
+function renderResults(){
+  const R = $('#results');
+  if(!st.items.length){
+    const s = st.status;
+    let h;
+    if(s && s.stage==='scanning' && !s.files) h = '<h3>Сканирую файлы…</h3>Первые результаты появятся через несколько секунд.';
+    else if(st.q) h = '<h3>Ничего не найдено</h3>Попробуйте часть слова или другой фильтр. Опечатки и неверная раскладка исправляются автоматически.';
+    else h = '<h3>Пока пусто</h3>Добавьте папки в настройках.';
+    R.innerHTML = '<div class="empty"><div><img src="/logo.png" alt="">'+h+'</div></div>'; return;
+  }
+  R.innerHTML = st.view==='grid' ? '<div class="grid">'+st.items.map(tileHTML).join('')+'</div>' : st.items.map(rowHTML).join('');
+  if(st.view==='grid') $$('.tile .ocr').forEach(el => { const t = el.closest('.tile'); t.onmouseenter = () => el.style.opacity=1; t.onmouseleave = () => el.style.opacity=0; });
+}
+function select(i, scroll=true){
+  if(!st.items.length) return;
+  i = Math.max(0, Math.min(st.items.length-1, i)); st.sel = i;
+  $$('.tile.sel,.row.sel').forEach(e=>e.classList.remove('sel'));
+  const el = $('[data-i="'+i+'"]'); if(el){ el.classList.add('sel'); if(scroll) el.scrollIntoView({block:'nearest'}); }
+  if(st.panel) renderDetail();
+}
+function cols(){ const g=$('.grid'); if(!g||st.view!=='grid') return 1; return getComputedStyle(g).gridTemplateColumns.split(' ').length; }
+
+async function openItem(it, reveal){
+  if(!it) return;
+  try{ await api(reveal?'/api/reveal':'/api/open', {path:it.path}); }catch(e){ toast(e.message); }
+}
+async function copyPath(it){ try{ await navigator.clipboard.writeText(it.path); toast('Путь скопирован'); }catch(e){ toast(it.path); } }
+
+// ---------- панель просмотра ----------
+let dseq=0;
+async function renderDetail(){
+  const it = st.items[st.sel], D = $('#detailIn');
+  if(!it){ D.innerHTML=''; return; }
+  const seq = ++dseq;
+  D.innerHTML = `<div class="dprev" id="dprev">${it.cat==='image'?`<img src="/api/thumb?p=${encodeURIComponent(it.path)}&w=1100" alt="">`:'<pre>Загрузка…</pre>'}</div>
+  <div><div class="dname">${hl(it.name)}</div><div class="dpath">${esc(it.dir)}</div></div>
+  <div class="btns"><button class="btn pri" id="dOpen"><svg class="i"><use href="#i-open"/></svg>Открыть</button><button class="btn" id="dRev"><svg class="i"><use href="#i-folderopen"/></svg>В папке</button><button class="btn" id="dCopy"><svg class="i"><use href="#i-copy"/></svg>Путь</button></div>
+  <div class="dmeta"><span>Тип</span><span>${it.isDir?'Папка':(it.ext?'.'+esc(it.ext):'Файл')}</span><span>Размер</span><span>${it.isDir?'—':size(it.size)+' ('+fmt(it.size)+' Б)'}</span><span>Изменён</span><span>${fullDate(it.mod)}</span></div>`;
+  $('#dOpen').onclick=()=>openItem(it); $('#dRev').onclick=()=>openItem(it,true); $('#dCopy').onclick=()=>copyPath(it);
+  if(it.cat==='image' && !it.isDir){
+    if(it.snip){ try{ const d = await api('/api/preview?p='+encodeURIComponent(it.path)); if(seq===dseq && d.text) $('#dprev').insertAdjacentHTML('afterend','<div><div class="dpath" style="margin-bottom:4px">Текст на изображении</div><div class="dprev"><pre>'+hl(d.text)+'</pre></div></div>'); }catch(e){} }
+    return;
+  }
+  try{
+    const d = await api('/api/preview?p='+encodeURIComponent(it.path));
+    if(seq!==dseq) return;
+    const box = $('#dprev'); if(!box) return;
+    if(d.list) box.innerHTML = '<pre>'+esc(d.list.join('\n'))+'</pre>';
+    else if(d.text) box.innerHTML = '<pre>'+hl(d.text)+'</pre>';
+    else box.innerHTML = '<pre>Предпросмотр недоступен для этого типа файлов.</pre>';
+    const m = box.querySelector('mark'); if(m) m.scrollIntoView({block:'center'});
+  }catch(e){ const box=$('#dprev'); if(box) box.innerHTML='<pre>Не удалось прочитать файл.</pre>'; }
+}
+function setPanel(on){ st.panel=on; $('#detail').classList.toggle('open',on); $('#vPanel').classList.toggle('on',on); if(on) renderDetail(); }
+
+// ---------- события ----------
+let qT;
+$('#q').addEventListener('input', e => { st.q = e.target.value; $('#clear').classList.toggle('show', !!st.q); search(); });
+$('#clear').onclick = () => { $('#q').value=''; st.q=''; $('#clear').classList.remove('show'); search(); $('#q').focus(); };
+$('#chips').addEventListener('click', e => { const b=e.target.closest('.chip'); if(!b) return; st.cat=b.dataset.c; lsSet('yx-cat', st.cat); search(); });
+$('#sort').onchange = e => { st.sort=e.target.value; search(); };
+function setView(v){ st.view=v; $('#vGrid').classList.toggle('on',v==='grid'); $('#vList').classList.toggle('on',v==='list'); renderResults(); }
+$('#vGrid').onclick = () => { setView('grid'); saveCfg({view:'grid'}); };
+$('#vList').onclick = () => { setView('list'); saveCfg({view:'list'}); };
+$('#vPanel').onclick = () => setPanel(!st.panel);
+$('#results').addEventListener('click', e => { const t=e.target.closest('[data-i]'); if(t) select(+t.dataset.i,false); });
+$('#results').addEventListener('dblclick', e => { const t=e.target.closest('[data-i]'); if(t) openItem(st.items[+t.dataset.i]); });
+$('#spSkip').onclick = () => { st.skip=true; $('#splash').classList.remove('show'); $('#q').focus(); };
+
+document.addEventListener('keydown', e => {
+  const inSettings = $('#settings').classList.contains('show');
+  if(e.key==='Escape'){
+    if(inSettings){ closeSettings(); return; }
+    if(st.panel){ setPanel(false); return; }
+    if(st.q){ $('#clear').click(); return; }
+    return;
+  }
+  if(inSettings) return;
+  const inInput = document.activeElement===$('#q');
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k' || (e.key==='/' && !inInput)){ e.preventDefault(); $('#q').focus(); $('#q').select(); return; }
+  const g = cols();
+  const move = d => { e.preventDefault(); if(inInput){ if(d<0) return; $('#q').blur(); } select(st.sel+d); };
+  switch(e.key){
+    case 'ArrowDown': return move(g);
+    case 'ArrowUp': if(inInput) return; return move(-g);
+    case 'ArrowRight': if(inInput) return; return move(1);
+    case 'ArrowLeft': if(inInput) return; return move(-1);
+    case 'Enter': if(st.items.length){ e.preventDefault(); openItem(st.items[st.sel], e.ctrlKey||e.metaKey); } return;
+    case ' ': if(!inInput){ e.preventDefault(); setPanel(!st.panel); } return;
+  }
+  if(!inInput && e.key.length===1 && !e.ctrlKey && !e.metaKey && !e.altKey){ $('#q').focus(); }
+});
+
+// ---------- настройки ----------
+let saveT;
+function saveCfg(patch, immediate){
+  if(!st.cfg) return;
+  Object.assign(st.cfg, patch);
+  clearTimeout(saveT);
+  const go = async () => {
+    try{
+      const r = await api('/api/settings', st.cfg);
+      $('#saved').textContent = r.reindex ? 'Сохранено · переиндексация запущена' : 'Сохранено';
+      setTimeout(()=>{ if($('#saved').textContent.startsWith('Сохранено')) $('#saved').textContent=''; }, 2500);
+      if(r.reindex) setTimeout(()=>search(), 600);
+    }catch(e){ toast(e.message); }
+  };
+  if(immediate) go(); else saveT = setTimeout(go, 350);
+}
+function renderSettings(){
+  const c = st.cfg; if(!c) return;
+  $$('.theme').forEach(b=>b.classList.toggle('on', b.dataset.t===c.theme));
+  $('#colors').classList.toggle('on', c.theme==='custom'); $('#presets').classList.toggle('on', c.theme==='custom');
+  $('#cBg').value=c.custom.bg; $('#cPanel').value=c.custom.panel; $('#cText').value=c.custom.text; $('#cAccent').value=c.custom.accent;
+  $('#mrVal').textContent=c.maxResults;
+  $('#tAuto').classList.toggle('on',c.startAtLogin); $('#tContent').classList.toggle('on',c.content); $('#tOcr').classList.toggle('on',c.ocr); $('#tTypos').classList.toggle('on',c.typos);
+  const li = (arr,k) => arr.map((p,i)=>`<div class="li"><span>${esc(p)}</span><button data-k="${k}" data-i="${i}" title="Убрать"><svg class="i"><use href="#i-x"/></svg></button></div>`).join('') || '<div class="li" style="color:var(--faint)">Пусто</div>';
+  $('#folderList').innerHTML = li(c.folders,'folders'); $('#exclList').innerHTML = li(c.exclusions,'exclusions');
+}
+async function openSettings(){
+  try{ const d = await api('/api/settings'); st.cfg = d.config; st.meta = d; }catch(e){ toast(e.message); return; }
+  $('#settings').classList.add('show'); renderSettings();
+  $('#verLine').textContent = 'Версия '+st.meta.version;
+  $('#dataDir').textContent = st.meta.dataDir;
+  $('#tAuto').closest('.fld').style.display = st.meta.windows ? '' : 'none';
+  const s = st.status||{};
+  $('#aboutStats').innerHTML = [[fmt(s.files||0),'файлов'],[fmt(s.folders||0),'папок'],[fmt(s.docs||0),'с содержимым']].map(([a,b])=>`<div class="stat"><b>${a}</b><span>${b}</span></div>`).join('');
+}
+function closeSettings(){ $('#settings').classList.remove('show'); search(); $('#q').focus(); }
+$('#openSettings').onclick = openSettings; $('#closeSettings').onclick = closeSettings;
+$('#settings').addEventListener('mousedown', e => { if(e.target.id==='settings') closeSettings(); });
+$$('.snav button').forEach(b => b.onclick = () => { $$('.snav button').forEach(x=>x.classList.toggle('on',x===b)); $$('.sec').forEach(s=>s.classList.toggle('on', s.id==='s-'+b.dataset.s)); });
+$('#themes').addEventListener('click', e => { const b=e.target.closest('.theme'); if(!b) return; st.cfg.theme=b.dataset.t; applyTheme(st.cfg); renderSettings(); saveCfg({theme:b.dataset.t}); });
+$('#presets').innerHTML = PRESETS.map((p,i)=>`<button data-p="${i}"><i style="background:${p.accent}"></i>${p.n}</button>`).join('');
+$('#presets').addEventListener('click', e => { const b=e.target.closest('button'); if(!b) return; const p=PRESETS[+b.dataset.p]; st.cfg.custom={bg:p.bg,panel:p.panel,text:p.text,accent:p.accent}; applyTheme(st.cfg); renderSettings(); saveCfg({custom:st.cfg.custom}); });
+[['cBg','bg'],['cPanel','panel'],['cText','text'],['cAccent','accent']].forEach(([id,k]) => $('#'+id).addEventListener('input', e => { st.cfg.custom[k]=e.target.value; applyTheme(st.cfg); saveCfg({custom:st.cfg.custom}); }));
+$('#mrMinus').onclick = () => { st.cfg.maxResults=Math.max(10,st.cfg.maxResults-10); renderSettings(); saveCfg({maxResults:st.cfg.maxResults}); };
+$('#mrPlus').onclick = () => { st.cfg.maxResults=Math.min(500,st.cfg.maxResults+10); renderSettings(); saveCfg({maxResults:st.cfg.maxResults}); };
+[['tAuto','startAtLogin'],['tContent','content'],['tOcr','ocr'],['tTypos','typos']].forEach(([id,k]) => $('#'+id).onclick = () => { st.cfg[k]=!st.cfg[k]; renderSettings(); saveCfg({[k]:st.cfg[k]}, true); });
+function addTo(k, inp){ const v=$(inp).value.trim(); if(!v) return; if(!st.cfg[k].includes(v)) st.cfg[k].push(v); $(inp).value=''; renderSettings(); saveCfg({[k]:st.cfg[k]}); }
+$('#folderAdd').onclick = () => addTo('folders','#folderIn'); $('#exclAdd').onclick = () => addTo('exclusions','#exclIn');
+$('#folderIn').addEventListener('keydown', e => { if(e.key==='Enter') addTo('folders','#folderIn'); });
+$('#exclIn').addEventListener('keydown', e => { if(e.key==='Enter') addTo('exclusions','#exclIn'); });
+$('#folderPick').onclick = async () => { try{ const d=await api('/api/pickfolder',{}); if(d.path){ $('#folderIn').value=d.path; addTo('folders','#folderIn'); } }catch(e){ toast(e.message); } };
+$('#settings').addEventListener('click', e => { const b=e.target.closest('.li button'); if(!b) return; st.cfg[b.dataset.k].splice(+b.dataset.i,1); renderSettings(); saveCfg({[b.dataset.k]:st.cfg[b.dataset.k]}); });
+$('#reidx').onclick = async () => { await api('/api/reindex',{wipe:false}); toast('Обновляю индекс…'); };
+$('#reidxFull').onclick = async () => { await api('/api/reindex',{wipe:true}); toast('Пересоздаю индекс с нуля…'); };
+$('#quitBtn').onclick = async () => { try{ await api('/api/quit',{}); }catch(e){} document.body.innerHTML='<div class="empty" style="height:100vh"><div><h3>YExplorer закрыт</h3>Окно можно закрыть.</div></div>'; };
+
+
+// ---------- Android ----------
+(function(){
+  document.querySelectorAll('#tOcr,#tAuto,#quitBtn,#folderPick').forEach(el=>{ const f=el.closest('.fld')||el; f.style.display='none'; });
+  document.querySelectorAll('.fld').forEach(f=>{ if(/Alt|Быстрый вызов|OCR|скриншот/i.test(f.textContent) && !f.querySelector('#tContent')) f.style.display='none'; });
+  $('#permBtn').onclick = () => api('/api/grant');
+  const oldRender = renderStatus;
+  renderStatus = function(s){ $('#permBox').classList.toggle('show', s.stage==='noperm'); if(s.stage!=='noperm') oldRender(s); };
+  // панель просмотра как отдельный экран + системная кнопка «назад»
+  const D = $('#detailIn'); 
+  const origSet = setPanel;
+  setPanel = function(on){ if(on && !st.panel){ history.pushState({p:1},''); } origSet(on); };
+  window.addEventListener('popstate', () => { if(st.panel) origSet(false); else if($('#settings').classList.contains('show')) closeSettings(); });
+  $('#results').addEventListener('click', e => { const t=e.target.closest('[data-i]'); if(t) setPanel(true); });
+  const origDetail = renderDetail;
+  renderDetail = async function(){ await origDetail(); const d=$('#detailIn'); if(d && !$('#dClose')){ d.insertAdjacentHTML('afterbegin','<button class="btn" id="dClose"><svg class="i"><use href="#i-x"/></svg>Назад</button>'); $('#dClose').onclick=()=>history.back(); } };
+  const os = openSettings;
+  openSettings = function(){ history.pushState({s:1},''); return os.apply(this,arguments); };
+})();
+
+// ---------- запуск ----------
+(async function init(){
+  try{
+    const d = await api('/api/settings'); st.cfg = d.config; applyTheme(st.cfg); st.view = st.cfg.view||'grid'; setView(st.view);
+  }catch(e){ setView('grid'); }
+  const c = lsGet('yx-cat'); if(c && CATS.some(x=>x[0]===c)) st.cat = c;
+  renderChips();
+  
+  await search();
+  pollStatus();
+})();
+</script>
+</body>
+</html>
